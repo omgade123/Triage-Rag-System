@@ -1,0 +1,44 @@
+{
+  "name": "triage-rag-system",
+  "version": "1.0.0",
+  "description": "A generic vulnerability triage and duplicate-detection system built around a retrieval-augmented generation (RAG) approach. It is designed to help analyze security findings, identify likely duplicates, and support faster, more consistent triage workflows.",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "migrate": "tsx src/db/migrate.ts",
+    "seed": "tsx src/ingestion/seed.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omgade123/Triage-Rag-System.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/omgade123/Triage-Rag-System/issues"
+  },
+  "homepage": "https://github.com/omgade123/Triage-Rag-System#readme",
+  "dependencies": {
+    "bullmq": "^6.3.4",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "ioredis": "^6.0.0",
+    "openai": "^7.9.0",
+    "pg": "^8.23.0",
+    "pgvector": "^0.3.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.4.1",
+    "@types/pg": "^8.23.1",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}
