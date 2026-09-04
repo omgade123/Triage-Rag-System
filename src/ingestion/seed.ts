@@ -1,6 +1,7 @@
 import { fetchCvePage, delay } from "./fetcher";
-import { enqueueReports } from "./queue";
+import { enqueueReports, ingestionQueue } from "./queue";
 import { config } from "../config";
+
 
 /**
  * CLI script to seed the database by fetching CVEs from NVD and
@@ -54,6 +55,7 @@ async function seed() {
   }
 
   console.log(`Seeding complete. ${totalFetched} records enqueued.`);
+  await ingestionQueue.close();
   process.exit(0);
 }
 

@@ -21,3 +21,14 @@ export async function runMigrations(): Promise<void> {
     console.log(`Completed migration: ${file}`);
   }
 }
+if (require.main === module) {
+  runMigrations()
+    .then(() => {
+      console.log("all migrations completed");
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.log("Migration failed: ", err);
+      process.exit(1);
+    })
+}
