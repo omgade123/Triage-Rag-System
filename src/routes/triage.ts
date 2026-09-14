@@ -1,7 +1,9 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { embedText, buildEmbeddingInput } from "../embedding/embedder";
-import { findSimilar } from "../retrieval/search";
+import { findSimilar, findVectorPool } from "../retrieval/search";
+import { mmrRerank } from "../retrieval/mmr";
+import { hybridSearch } from "../retrieval/hybrid";
 import { checkDuplicate } from "../retrieval/duplicate";
 import { classifyReport } from "../classification/classifier";
 import { config } from "../config";
@@ -18,6 +20,9 @@ const triageCheckSchema = z.object({
 const similarQuerySchema = z.object({
   q: z.string().min(1, "query string 'q' is required"),
   cwe: z.string().optional(),
+  // Retrieval strategy: plain cosine (default), MMR-diversified, or hybrid
+  // (vector + BM25 fused with RRF).
+  mode: z.enum(["vector", "mmr", "hybrid"]).optional().default("vector"),
   topK: z
     .string()
     .optional()
@@ -76,11 +81,20 @@ triageRouter.post("/classify", async (req: Request, res: Response) => {
     const text = buildEmbeddingInput(title, cwe ?? null, description);
     const queryEmbedding = await embedText(text);
 
-    // Retrieve similar reports (optionally scoped to a CWE category).
-    const candidates = await findSimilar(
+    // Retrieve a pool by cosine, then MMR-rerank to the top-k. MMR diversifies
+    // the grounding context (better few-shot signal for the classifier) while
+    // keeping the top match — and thus the duplicate check — identical to plain
+    // cosine, since MMR's first pick is always the highest-similarity report.
+    const poolCandidates = await findVectorPool(
       queryEmbedding,
-      config.defaultTopK,
+      config.retrievalPoolSize,
       cwe
+    );
+    const candidates = mmrRerank(
+      queryEmbedding,
+      poolCandidates,
+      config.defaultTopK,
+      config.mmrLambda
     );
 
     // Duplicate check + grounded classification, run together.
@@ -105,15 +119,27 @@ triageRouter.get("/similar", async (req: Request, res: Response) => {
       return;
     }
 
-    const { q, cwe, topK } = parsed.data;
+    const { q, cwe, topK, mode } = parsed.data;
 
     // Embed the search query
     const queryEmbedding = await embedText(q);
 
-    // Run similarity search with optional CWE filter
-    const results = await findSimilar(queryEmbedding, topK, cwe);
+    // Run similarity search with the requested strategy and optional CWE filter
+    let results;
+    if (mode === "hybrid") {
+      results = await hybridSearch(queryEmbedding, q, topK, cwe);
+    } else if (mode === "mmr") {
+      const pool = await findVectorPool(
+        queryEmbedding,
+        config.retrievalPoolSize,
+        cwe
+      );
+      results = mmrRerank(queryEmbedding, pool, topK, config.mmrLambda);
+    } else {
+      results = await findSimilar(queryEmbedding, topK, cwe);
+    }
 
-    res.json({ query: q, cwe: cwe || null, results });
+    res.json({ query: q, cwe: cwe || null, mode, results });
   } catch (err) {
     console.error("Error in GET /triage/similar:", err);
     res.status(500).json({ error: "Internal server error" });

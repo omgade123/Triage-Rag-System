@@ -12,6 +12,19 @@ export const config = {
   duplicateThreshold: 0.92,
   defaultTopK: 5,
 
+  // Size of the candidate pool fetched before re-ranking (MMR / hybrid
+  // fusion). Larger pool = more to diversify/fuse over, at more DB cost.
+  retrievalPoolSize: 20,
+
+  // MMR (Maximal Marginal Relevance) trade-off. 1.0 = pure relevance,
+  // 0.0 = pure diversity. 0.7 leans toward relevance while pruning
+  // near-duplicate results that add no new signal.
+  mmrLambda: 0.7,
+
+  // Reciprocal Rank Fusion constant for hybrid (vector + BM25) search.
+  // Standard default from the RRF paper.
+  rrfK: 60,
+
   // Embedding model
   embeddingModel: "text-embedding-3-small" as const,
   embeddingDimensions: 1536,

@@ -114,11 +114,26 @@ Full RAG triage: retrieve → duplicate check → grounded classification.
 Duplicate detection only. Body `{ title, description }` →
 `{ isDuplicate, topMatch, candidates }`.
 
-### `GET /triage/similar?q=...&cwe=CWE-79&topK=10`
-Semantic search, optionally scoped to a CWE category.
+### `GET /triage/similar?q=...&cwe=CWE-79&topK=10&mode=hybrid`
+Semantic search, optionally scoped to a CWE category. `mode` selects the
+retrieval strategy:
+- `vector` (default) — plain top-k cosine similarity.
+- `mmr` — MMR-diversified re-ranking (prunes near-duplicate results).
+- `hybrid` — vector + BM25 full-text, fused with Reciprocal Rank Fusion.
 
 ### `GET /health`
 Liveness check.
+
+## Evaluation
+
+`npm run eval [k] [sampleSize]` measures retrieval quality against NVD's
+built-in ground truth (each report's CWE label), using leave-one-out over a
+random sample and each report's own stored embedding as the query (so it
+measures the index, not the embedding API — and costs nothing to run):
+
+```
+precision@k · recall@k · hit-rate@k · MRR
+```
 
 ## Design principle
 
@@ -129,10 +144,25 @@ cite them; citations to ids outside the retrieved set are filtered out
 server-side so no prediction can reference a report that wasn't actually
 surfaced.
 
+## Retrieval strategies
+
+All three are implemented and selectable:
+
+- **Vector** — plain top-k cosine similarity (pgvector HNSW).
+- **MMR re-ranking** (`src/retrieval/mmr.ts`) — over-fetches a pool then
+  greedily re-ranks for relevance **and** diversity, pruning near-duplicate
+  results that add no new signal. Used automatically by `/triage/classify` so
+  the classifier's grounding context is diverse; the top match (and thus the
+  duplicate check) is unchanged, since MMR's first pick is always the highest-
+  similarity report.
+- **Hybrid** (`src/retrieval/hybrid.ts`) — fuses vector similarity with the
+  Postgres full-text (BM25-style) index via Reciprocal Rank Fusion, so
+  exact-match terms (CVE IDs, product/vendor names, CWE codes) aren't lost to
+  pure semantic search. Fusion runs in a single SQL statement.
+
 ## Roadmap / not yet built
 
-- **MMR (Maximal Marginal Relevance) re-ranking** — diversify top-k results.
-- **BM25 + vector hybrid scoring** — combine the existing `tsvector` full-text
-  index with vector similarity for exact-match terms (CVE IDs, product names).
-- **Evaluation harness** — precision@k / recall@k against the CWE/CVSS labels
-  already present in the NVD data (built-in ground truth).
+- **Classifier eval** — extend the harness to score predicted CWE/severity
+  (not just retrieval) against the NVD labels.
+- **Incremental/scheduled ingestion** — pull only CVEs modified since the last
+  run, rather than re-seeding.

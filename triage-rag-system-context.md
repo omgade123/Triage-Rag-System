@@ -85,18 +85,26 @@ NVD (National Vulnerability Database) public CVE feed:
   and renders the duplicate banner, grounded classification with citations,
   and the ranked similar-report list.
 
+## Retrieval strategies (built)
+- **MMR (Maximal Marginal Relevance) re-ranking** (`src/retrieval/mmr.ts`) —
+  over-fetches a pool (with embeddings) and greedily re-ranks for relevance +
+  diversity, pruning near-duplicate results. `/triage/classify` uses it so the
+  classifier's grounding context is diverse; the top match is unchanged (MMR's
+  first pick is always the highest-similarity report), so duplicate detection
+  is unaffected. `mode=mmr` on `/triage/similar`.
+- **BM25 + vector hybrid scoring** (`src/retrieval/hybrid.ts`) — fuses the
+  vector ranking with the Postgres full-text (`tsvector`) ranking via
+  Reciprocal Rank Fusion, in a single SQL statement. `mode=hybrid` on
+  `/triage/similar`.
+- **Evaluation harness** (`src/eval/evaluate.ts`, `npm run eval`) — leave-one-
+  out precision@k / recall@k / hit-rate@k / MRR against NVD's built-in CWE
+  labels, using each report's stored embedding as the query.
+
 ## Roadmap / not yet built
-- **MMR (Maximal Marginal Relevance) re-ranking** — current retrieval is
-  plain top-k cosine similarity, which can return near-duplicate results
-  that don't add signal. MMR re-ranks for relevance + diversity.
-- **BM25 + vector hybrid scoring** — CVE text has exact-match terms (CVE
-  IDs, product/vendor names, CWE codes) where pure semantic search
-  underperforms keyword search. Postgres full-text search (`tsvector`,
-  already indexed) should be combined with vector similarity.
-- **Evaluation harness** — precision@k / recall@k measured against the real
-  CVSS/CWE labels already present in the NVD data (a built-in ground truth,
-  since we're not hand-labeling). This is what turns "I built a triage
-  system" into "I built a triage system and measured it."
+- **Classifier eval** — score predicted CWE/severity (not just retrieval)
+  against the NVD labels.
+- **Incremental/scheduled ingestion** — pull only CVEs modified since the last
+  run rather than re-seeding.
 
 ## Working style / constraints for this session
 - The person building this (Om) wants to write the implementation code
