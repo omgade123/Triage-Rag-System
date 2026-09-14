@@ -15,4 +15,8 @@ export const config = {
   // Embedding model
   embeddingModel: "text-embedding-3-small" as const,
   embeddingDimensions: 1536,
+
+  // Classification (generation) model — the LLM that predicts CWE/severity
+  // grounded in retrieved similar reports.
+  classificationModel: "gpt-4o-mini" as const,
 };

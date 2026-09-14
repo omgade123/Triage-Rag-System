@@ -3,6 +3,7 @@ import { z } from "zod";
 import { embedText, buildEmbeddingInput } from "../embedding/embedder";
 import { findSimilar } from "../retrieval/search";
 import { checkDuplicate } from "../retrieval/duplicate";
+import { classifyReport } from "../classification/classifier";
 import { config } from "../config";
 
 export const triageRouter = Router();
@@ -50,6 +51,45 @@ triageRouter.post("/check", async (req: Request, res: Response) => {
     res.json(result);
   } catch (err) {
     console.error("Error in POST /triage/check:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// --- POST /triage/classify ---
+// Body: { title, description, cwe? }
+// Full RAG triage: retrieve similar reports, check for duplicates, and run
+// the LLM classification layer to predict CWE/severity with citations.
+// Returns: { isDuplicate, topMatch, candidates, classification }
+
+triageRouter.post("/classify", async (req: Request, res: Response) => {
+  try {
+    const parsed = triageCheckSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.flatten() });
+      return;
+    }
+
+    const { title, description } = parsed.data;
+    const cwe = typeof req.body?.cwe === "string" ? req.body.cwe : undefined;
+
+    // Embed the incoming report using the same format as stored reports.
+    const text = buildEmbeddingInput(title, cwe ?? null, description);
+    const queryEmbedding = await embedText(text);
+
+    // Retrieve similar reports (optionally scoped to a CWE category).
+    const candidates = await findSimilar(
+      queryEmbedding,
+      config.defaultTopK,
+      cwe
+    );
+
+    // Duplicate check + grounded classification, run together.
+    const dup = checkDuplicate(candidates);
+    const classification = await classifyReport(title, description, candidates);
+
+    res.json({ ...dup, classification });
+  } catch (err) {
+    console.error("Error in POST /triage/classify:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

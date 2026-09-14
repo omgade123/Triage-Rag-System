@@ -63,15 +63,27 @@ NVD (National Vulnerability Database) public CVE feed:
 6. **Duplicate check** — if the top similarity match exceeds a threshold
    (currently 0.92, needs tuning against a labeled eval set), flag as likely
    duplicate.
-7. **Classify** (not yet built) — LLM layer predicts CWE/severity for the
-   incoming report, using retrieved similar reports as grounding context.
+7. **Classify** (built) — LLM layer (`gpt-4o-mini`) predicts CWE/severity for
+   the incoming report, using retrieved similar reports as grounding context.
+   Output is zod-validated and citations are filtered to ids that actually
+   appear in the retrieved set, so no prediction can cite a report that
+   wasn't surfaced.
 
 ## API surface
 - `POST /triage/check` — body `{ title, description }` → returns
   `{ isDuplicate, topMatch, candidates }`, each candidate with a similarity
   score and traceable source id.
+- `POST /triage/classify` — body `{ title, description, cwe? }` → runs the
+  full pipeline (retrieve → duplicate check → classify) and returns
+  `{ isDuplicate, topMatch, candidates, classification }`.
 - `GET /triage/similar?q=...&cwe=CWE-79` — semantic search, optionally
   scoped to a CWE category.
+
+## Frontend
+- Dependency-free single-page UI in `public/` (index.html + styles.css +
+  app.js), served statically by Express. Submits to `POST /triage/classify`
+  and renders the duplicate banner, grounded classification with citations,
+  and the ranked similar-report list.
 
 ## Roadmap / not yet built
 - **MMR (Maximal Marginal Relevance) re-ranking** — current retrieval is
@@ -81,10 +93,6 @@ NVD (National Vulnerability Database) public CVE feed:
   IDs, product/vendor names, CWE codes) where pure semantic search
   underperforms keyword search. Postgres full-text search (`tsvector`,
   already indexed) should be combined with vector similarity.
-- **LLM classification layer** — predict CWE/severity for an incoming
-  report, grounded in the retrieved similar reports as few-shot context,
-  with citations back to which report supported which part of the
-  classification.
 - **Evaluation harness** — precision@k / recall@k measured against the real
   CVSS/CWE labels already present in the NVD data (a built-in ground truth,
   since we're not hand-labeling). This is what turns "I built a triage

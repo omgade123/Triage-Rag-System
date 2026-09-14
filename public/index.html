@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Triage RAG System</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">🛡️</span>
+        <div>
+          <h1>Triage RAG System</h1>
+          <p class="tagline">
+            Grounded vulnerability triage &amp; duplicate detection
+          </p>
+        </div>
+      </div>
+      <div class="health" id="health" title="API health">
+        <span class="dot" id="health-dot"></span>
+        <span id="health-text">checking…</span>
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- Input panel -->
+      <section class="panel">
+        <h2>Incoming report</h2>
+        <form id="triage-form">
+          <label for="title">Title</label>
+          <input
+            id="title"
+            name="title"
+            type="text"
+            placeholder="e.g. Stored XSS in comment field"
+            required
+          />
+
+          <label for="description">Description</label>
+          <textarea
+            id="description"
+            name="description"
+            rows="7"
+            placeholder="Describe the vulnerability: affected component, attack vector, impact…"
+            required
+          ></textarea>
+
+          <label for="cwe">
+            CWE filter <span class="muted">(optional — scopes retrieval)</span>
+          </label>
+          <input
+            id="cwe"
+            name="cwe"
+            type="text"
+            placeholder="e.g. CWE-79"
+          />
+
+          <div class="actions">
+            <button type="submit" id="submit-btn">
+              <span class="btn-label">Triage report</span>
+              <span class="spinner" hidden></span>
+            </button>
+            <button type="button" id="sample-btn" class="secondary">
+              Load sample
+            </button>
+          </div>
+          <p class="hint">
+            Runs the full RAG pipeline: embed → retrieve similar CVEs →
+            duplicate check → grounded CWE/severity classification.
+          </p>
+        </form>
+      </section>
+
+      <!-- Results panel -->
+      <section class="panel results" id="results">
+        <div class="placeholder" id="placeholder">
+          <p>Submit a report to see triage results.</p>
+        </div>
+
+        <div id="output" hidden>
+          <!-- Duplicate banner -->
+          <div class="banner" id="dup-banner"></div>
+
+          <!-- Classification card -->
+          <div class="card" id="classification-card">
+            <h3>Predicted classification</h3>
+            <div class="chips" id="pred-chips"></div>
+            <p class="rationale" id="rationale"></p>
+            <div class="citations" id="citations"></div>
+          </div>
+
+          <!-- Candidates -->
+          <div class="card">
+            <h3>
+              Similar historical reports
+              <span class="muted" id="candidate-count"></span>
+            </h3>
+            <ul class="candidates" id="candidates"></ul>
+          </div>
+        </div>
+
+        <div class="error" id="error" hidden></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>RAG over the NVD CVE feed · pgvector · OpenAI embeddings</span>
+    </footer>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
