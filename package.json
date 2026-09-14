@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "migrate": "tsx src/db/migrate.ts",
     "seed": "tsx src/ingestion/seed.ts",
+    "eval": "tsx src/eval/evaluate.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

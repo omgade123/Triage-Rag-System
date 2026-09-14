@@ -1,4 +1,5 @@
 import express from "express";
+import path from "path";
 import { config } from "./config";
 import { runMigrations } from "./db/migrate";
 import { triageRouter } from "./routes/triage";
@@ -26,6 +27,11 @@ async function main() {
 
   // Triage routes
   app.use("/triage", triageRouter);
+
+  // Serve the static frontend (public/ lives at the repo root, one level up
+  // from the compiled dist/ dir and from src/ when running via tsx).
+  const publicDir = path.resolve(__dirname, "..", "public");
+  app.use(express.static(publicDir));
 
   // Start server
   app.listen(config.port, () => {
